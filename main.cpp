@@ -1,3 +1,12 @@
+// 这是第07课的回家作业，主题是访存优化
+// 录播见：https://www.bilibili.com/video/BV1gu41117bW
+// 作业的回答推荐写在 ANSWER.md 方便老师批阅，也可在 PR 描述中
+// 请晒出程序被你优化前后的运行结果（ticktock 的用时统计）
+// 可以比较采用了不同的优化手段后，加速了多少倍，做成表格
+// 如能同时贴出 CPU 核心数量，缓存大小等就最好了（lscpu 命令）
+// 作业中有很多个问句，请通过注释回答问题，并改进其代码，以使其更快
+// 并行可以用 OpenMP 也可以用 TBB
+
 #include <iostream>
 //#include <x86intrin.h>  // _mm 系列指令都来自这个头文件
 //#include <xmmintrin.h>  // 如果上面那个不行，试试这个
@@ -8,14 +17,13 @@
 // Matrix 是 YX 序的二维浮点数组：mat(x, y) = mat.data()[y * mat.shape(0) + x]
 using Matrix = ndarray<2, float>;
 // 注意：默认对齐到 64 字节，如需 4096 字节，请用 ndarray<2, float, AlignedAllocator<4096, float>>
-// 并行可以用 OpenMP 也可以用 TBB
 
 static void matrix_randomize(Matrix &out) {
     TICK(matrix_randomize);
     size_t nx = out.shape(0);
     size_t ny = out.shape(1);
 
-    // 这个循环为什么不够高效？如何优化？
+    // 这个循环为什么不够高效？如何优化？ 10 分
 #pragma omp parallel for collapse(2)
     for (int x = 0; x < nx; x++) {
         for (int y = 0; y < ny; y++) {
@@ -32,7 +40,7 @@ static void matrix_transpose(Matrix &out, Matrix const &in) {
     size_t ny = in.shape(1);
     out.reshape(ny, nx);
 
-    // 这个循环为什么不够高效？如何优化？
+    // 这个循环为什么不够高效？如何优化？ 15 分
 #pragma omp parallel for collapse(2)
     for (int x = 0; x < nx; x++) {
         for (int y = 0; y < ny; y++) {
@@ -53,11 +61,11 @@ static void matrix_multiply(Matrix &out, Matrix const &lhs, Matrix const &rhs) {
     }
     out.reshape(nx, ny);
 
-    // 这个循环为什么不够高效？如何优化？
+    // 这个循环为什么不够高效？如何优化？ 15 分
 #pragma omp parallel for collapse(2)
     for (int y = 0; y < ny; y++) {
         for (int x = 0; x < nx; x++) {
-            out(x, y) = 0;  // 有没有必要手动初始化？提示：ndarray 的底层是 std::vector
+            out(x, y) = 0;  // 有没有必要手动初始化？ 5 分
             for (int t = 0; t < nt; t++) {
                 out(x, y) += lhs(x, t) * rhs(t, y);
             }
@@ -69,9 +77,9 @@ static void matrix_multiply(Matrix &out, Matrix const &lhs, Matrix const &rhs) {
 // 求出 R^T A R
 static void matrix_RtAR(Matrix &RtAR, Matrix const &R, Matrix const &A) {
     TICK(matrix_RtAR);
-    Matrix Rt;       // 这是临时变量，有什么可以优化的？
+    // 这两个是临时变量，有什么可以优化的？ 5 分
+    Matrix Rt, RtA;
     matrix_transpose(Rt, R);
-    Matrix RtA;      // 这是临时变量，有什么可以优化的？
     matrix_multiply(RtA, Rt, A);
     matrix_multiply(RtAR, RtA, R);
     TOCK(matrix_RtAR);
