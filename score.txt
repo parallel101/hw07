@@ -1,43 +1,44 @@
-# 原始代码
-
+/home/acai/homework/hw07/cmake-build-release/main
 t=0: n=1120
-matrix_randomize: 0.000928323s
-matrix_randomize: 0.000687871s
-matrix_transpose: 0.00252768s
-matrix_multiply: 0.904947s
-matrix_multiply: 0.901407s
-matrix_RtAR: 1.80908s
-matrix_trace: 6.026e-06s
-1.75932e+08
-test_func: 1.81493s
+matrix_randomize: 0.0015663s
+matrix_randomize: 0.00102727s
+matrix_transpose: 0.000903205s
+matrix_multiply: 0.241811s
+matrix_multiply: 0.245411s
+matrix_RtAR: 0.491522s
+matrix_trace: 0.000206533s
+1.75917e+08
+test_func: 0.498164s
 t=1: n=928
-matrix_randomize: 0.000416769s
-matrix_randomize: 0.0015025s
-matrix_transpose: 0.00151582s
-matrix_multiply: 0.301254s
-matrix_multiply: 0.28622s
-matrix_RtAR: 0.589364s
-matrix_trace: 5.466e-06s
-1.00156e+08
-test_func: 0.594152s
+matrix_randomize: 0.000653089s
+matrix_randomize: 0.000652182s
+matrix_transpose: 0.000552466s
+matrix_multiply: 0.138163s
+matrix_multiply: 0.131137s
+matrix_RtAR: 0.272609s
+matrix_trace: 0.0132021s
+1.00117e+08
+test_func: 0.289639s
 t=2: n=1024
-matrix_randomize: 0.000563016s
-matrix_randomize: 0.000558918s
-matrix_transpose: 0.00226996s
-matrix_multiply: 0.709763s
-matrix_multiply: 0.71093s
-matrix_RtAR: 1.42356s
-matrix_trace: 5.926e-06s
-1.34324e+08
-test_func: 1.42708s
+matrix_randomize: 0.00358723s
+matrix_randomize: 0.0114491s
+matrix_transpose: 0.000846697s
+matrix_multiply: 0.434124s
+matrix_multiply: 0.433022s
+matrix_RtAR: 0.870843s
+matrix_trace: 7.2359e-05s
+1.34321e+08
+test_func: 0.887636s
 t=3: n=1056
-matrix_randomize: 0.000606057s
-matrix_randomize: 0.000610583s
-matrix_transpose: 0.00212937s
-matrix_multiply: 0.753805s
-matrix_multiply: 0.758014s
-matrix_RtAR: 1.51414s
-matrix_trace: 0.000139467s
-1.47405e+08
-test_func: 1.5189s
-overall: 5.35657s
+matrix_randomize: 0.00463273s
+matrix_randomize: 0.00461193s
+matrix_transpose: 0.000724731s
+matrix_multiply: 0.194122s
+matrix_multiply: 0.197868s
+matrix_RtAR: 0.395877s
+matrix_trace: 0.000161728s
+1.47397e+08
+test_func: 0.407029s
+overall: 2.08362s
+
+Process finished with exit code 0
