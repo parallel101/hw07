@@ -35,19 +35,19 @@ matrix_RtAR: 2.73x
 
 > matrix_randomize
 
-请回答。
+教给了tbb， 写连续地址，希望tbb能帮我优化成一次写一个缓存行。
 
 > matrix_transpose
 
-请回答。
+交给了tbb， 我知道访问内存不连续，而且还有写不连续， 希望tbb 给我一个完美答案
 
 > matrix_multiply
 
-请回答。
+交给了tbb 来做， 我尝试了不同的粒度和partitioner的方法， 最后确定simple 的在我机器上跑的快点。
 
 > matrix_RtAR
 
-请回答。
+我并没有什么思路， 感觉预分配一个大小会快点。 😊 
 
 # 我的创新点
 
