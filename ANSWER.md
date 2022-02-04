@@ -195,7 +195,7 @@ overall: 2.43144s
 **优化**
 
 - 循环分块，使用`YXyx`序，只要保证`BlockSize^2`小于下缓存容量即可
-- `tbb`自带莫顿序遍历功能
+- `tbb::simple_partitioner`自带莫顿序遍历功能
 
 > matrix_multiply
 

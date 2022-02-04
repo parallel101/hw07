@@ -38,23 +38,24 @@ static void matrix_randomize(Matrix &out) {
 //        }
 //    }
 
-#pragma omp parallel for collapse(2)
-    for (int y = 0; y < ny; y++) {
-        for (int x = 0; x < nx; x++) {
-            float val = wangsrng(x, y).next_float();
-            out(x, y) = val;
-        }
-    }
+//#pragma omp parallel for collapse(2)
+//    for (int y = 0; y < ny; y++) {
+//        for (int x = 0; x < nx; x++) {
+//            float val = wangsrng(x, y).next_float();
+//            out(x, y) = val;
+//        }
+//    }
 
-//    tbb::parallel_for(tbb::blocked_range2d<size_t>(0,nx,0,ny),
-//            [&](tbb::blocked_range2d<size_t> r){
-//                for(int y = r.cols().begin(); y < r.cols().end(); y++){
-//                    for(int x = r.rows().begin(); x < r.rows().end(); x++){
-//                        float val = wangsrng(x, y).next_float();
-//                            out(x, y) = val;
-//                    }
-//                }
-//    });
+    tbb::parallel_for(tbb::blocked_range2d<size_t>(0,nx,0,ny),
+            [&](tbb::blocked_range2d<size_t> r){
+                for(int y = r.cols().begin(); y < r.cols().end(); y++){
+                    for(int x = r.rows().begin(); x < r.rows().end(); x++){
+                        float val = wangsrng(x, y).next_float();
+                            out(x, y) = val;
+                    }
+                }
+    });
+
     TOCK(matrix_randomize);
 }
 
@@ -67,7 +68,7 @@ static void matrix_transpose(Matrix &out, Matrix const &in) {
     // 这个循环为什么不够高效？如何优化？ 15 分
     //原因：在内存看来，访存是跳跃的，违背了空间局域性
     //优化：1.循环分块，使用YXyx序，只要保证BlockSize^2小于下缓存容量即可
-    //      2.tbb自带莫顿序遍历功能
+    //      2.tbb::simple_partitioner自带莫顿序遍历功能
 //#pragma omp parallel for collapse(2)
 //    for (int x = 0; x < nx; x++) {
 //        for (int y = 0; y < ny; y++) {
@@ -75,23 +76,23 @@ static void matrix_transpose(Matrix &out, Matrix const &in) {
 //        }
 //    }
 
-#pragma omp parallel for collapse(2)
-    for (int y = 0; y < ny; y++) {
-        for (int x = 0; x < nx; x++) {
-            out(x, y) = in(y, x);
-        }
-    }
-
-
-//    constexpr int blockSize = 64;
-//    tbb::parallel_for(tbb::blocked_range2d<size_t>(0,nx,blockSize,0,ny,blockSize),
-//            [&](tbb::blocked_range2d<size_t> const & r){
-//        for(int y = r.cols().begin(); y < r.cols().end(); y++){
-//            for(int x = r.rows().begin(); x < r.rows().end(); x++ ){
-//                out(x,y) = in(y,x);
-//            }
+//#pragma omp parallel for collapse(2)
+//    for (int y = 0; y < ny; y++) {
+//        for (int x = 0; x < nx; x++) {
+//            out(x, y) = in(y, x);
 //        }
-//    },tbb::simple_partitioner{});
+//    }
+
+
+    constexpr int blockSize = 64;
+    tbb::parallel_for(tbb::blocked_range2d<size_t>(0,nx,blockSize,0,ny,blockSize),
+            [&](tbb::blocked_range2d<size_t> const & r){
+        for(int y = r.cols().begin(); y < r.cols().end(); y++){
+            for(int x = r.rows().begin(); x < r.rows().end(); x++ ){
+                out(x,y) = in(y,x);
+            }
+        }
+    },tbb::simple_partitioner{});
 
     TOCK(matrix_transpose);
 }
