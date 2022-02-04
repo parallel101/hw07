@@ -46,7 +46,8 @@ public:
     {
     }
 
-    template <class ...Ts, std::enable_if_t<sizeof...(Ts) == N && (std::is_integral_v<Ts> && ...), int> = 0>
+    // template <typename...Ts, std::enable_if_t<sizeof...(Ts) == N && (std::is_integral_v<Ts> && ...), int > = 0>
+    template <typename...Ts, std::enable_if_t<sizeof...(Ts) == N && std::conjunction_v<std::is_integral<Ts>...>, int > = 0>
     explicit ndarray(Ts const &...ts)
         : ndarray(Shape{ts...})
     {
@@ -73,7 +74,8 @@ public:
         m_arr.shrink_to_fit();
     }
 
-    template <class ...Ts, std::enable_if_t<sizeof...(Ts) == N && (std::is_integral_v<Ts> && ...), int> = 0>
+    // template <class ...Ts, std::enable_if_t<sizeof...(Ts) == N && (std::is_integral_v<Ts> && ...), int> = 0>
+    template <class ...Ts, std::enable_if_t<sizeof...(Ts) == N && std::conjunction_v<std::is_integral<Ts>...> , int> = 0>
     void reshape(Ts const &...ts)
     {
         this->reshape(Shape{ts...});
@@ -129,13 +131,15 @@ public:
         return data()[linearize(dim)];
     }
 
-    template <class ...Ts, std::enable_if_t<sizeof...(Ts) == N && (std::is_integral_v<Ts> && ...), int> = 0>
+    // template <class ...Ts, std::enable_if_t<sizeof...(Ts) == N && (std::is_integral_v<Ts> && ...), int> = 0>
+    template <class ...Ts, std::enable_if_t<sizeof...(Ts) == N && std::conjunction_v<std::is_integral<Ts>...> , int> = 0>
     constexpr T &operator()(Ts const &...ts) noexcept
     {
         return operator()(Dim{ts...});
     }
 
-    template <class ...Ts, std::enable_if_t<sizeof...(Ts) == N && (std::is_integral_v<Ts> && ...), int> = 0>
+    // template <class ...Ts, std::enable_if_t<sizeof...(Ts) == N && (std::is_integral_v<Ts> && ...), int> = 0>
+    template <class ...Ts, std::enable_if_t<sizeof...(Ts) == N && std::conjunction_v<std::is_integral<Ts>...> , int> = 0>
     constexpr T const &operator()(Ts const &...ts) const noexcept
     {
         return operator()(Dim{ts...});
@@ -161,13 +165,15 @@ public:
         return data()[safe_linearize(dim)];
     }
 
-    template <class ...Ts, std::enable_if_t<sizeof...(Ts) == N && (std::is_integral_v<Ts> && ...), int> = 0>
+    // template <class ...Ts, std::enable_if_t<sizeof...(Ts) == N && (std::is_integral_v<Ts> && ...), int> = 0>
+    template <class ...Ts, std::enable_if_t<sizeof...(Ts) == N && std::conjunction_v<std::is_integral<Ts>...> , int> = 0>
     T &at(Ts const &...ts)
     {
         return at(Dim{ts...});
     }
 
-    template <class ...Ts, std::enable_if_t<sizeof...(Ts) == N && (std::is_integral_v<Ts> && ...), int> = 0>
+    // template <class ...Ts, std::enable_if_t<sizeof...(Ts) == N && (std::is_integral_v<Ts> && ...), int> = 0>
+    template <class ...Ts, std::enable_if_t<sizeof...(Ts) == N && std::conjunction_v<std::is_integral<Ts>...> , int> = 0>
     T const &at(Ts const &...ts) const
     {
         return at(Dim{ts...});
