@@ -7,13 +7,18 @@
 #include <type_traits>
 #include <stdexcept>
 
+#define _GLIBCXX_HAVE_ALIGNED_ALLOC
 // https://stackoverflow.com/questions/12942548/making-stdvector-allocate-aligned-memory
 namespace detail {
     void* allocate_aligned_memory(size_t align, size_t size) {
-        return std::aligned_alloc(align, size);
+//        return std::aligned_alloc(align, size);
+        return _aligned_malloc(size, align);
     }
+
+
     void deallocate_aligned_memory(void* ptr) noexcept {
-        std::free(ptr);
+//        std::free(ptr);
+        _aligned_free(ptr);
     }
 }
 
