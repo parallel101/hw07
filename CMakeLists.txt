@@ -11,8 +11,8 @@ add_executable(main main.cpp)
 find_package(OpenMP REQUIRED)
 target_link_libraries(main PUBLIC OpenMP::OpenMP_CXX)
 
-#find_package(TBB REQUIRED)
-#target_link_libraries(main PUBLIC TBB::tbb)
+find_package(TBB REQUIRED)
+target_link_libraries(main PUBLIC TBB::tbb)
 
 if (MSVC)
     target_compile_options(main PUBLIC /fp:fast /arch:AVX)
