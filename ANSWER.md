@@ -1,23 +1,45 @@
 # 改进前
 
 ```
-这里贴改进前的运行结果。
-matrix_randomize: 100s
+...
+t=2: n=1024
+matrix_randomize: 0.00138448s
+matrix_randomize: 0.00140546s
+matrix_transpose: 0.00400085s
+matrix_multiply: 1.32128s
+matrix_multiply: 1.37719s
+matrix_RtAR: 2.7027s
+matrix_trace: 6.573e-06s
+1.34324e+08
+test_func: 2.70884s
+overall: 11.703s
+...
 ```
 
 # 改进后
 
 ```
-这里贴改进后的运行结果。
-matrix_randomize: 0.01s
+t=2: n=1024
+matrix_randomize: 0.000223787s
+matrix_randomize: 0.000234784s
+matrix_transpose: 0.000950278s
+matrix_multiply: 0.0211322s
+matrix_multiply: 0.0236634s
+matrix_RtAR: 0.045924s
+matrix_trace: 6.171e-06s
+1.34277e+08
+test_func: 0.0502626s
+...
+overall: 0.228116s
+
 ```
 
 # 加速比
 
-matrix_randomize: 10000x
-matrix_transpose: 10000x
-matrix_multiply: 10000x
-matrix_RtAR: 10000x
+matrix_randomize: 6.18x
+matrix_transpose: 4.21x
+matrix_multiply: 62.52x
+matrix_RtAR: 58.85x
 
 > 如果记录了多种优化方法，可以做表格比较
 
