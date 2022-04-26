@@ -8,14 +8,14 @@
 // 并行可以用 OpenMP 也可以用 TBB
 
 #include <iostream>
-//#include <x86intrin.h>  // _mm 系列指令都来自这个头文件
+#include <x86intrin.h>  // _mm 系列指令都来自这个头文件
 //#include <xmmintrin.h>  // 如果上面那个不行，试试这个
 #include "ndarray.h"
 #include "wangsrng.h"
 #include "ticktock.h"
 
 // Matrix 是 YX 序的二维浮点数组：mat(x, y) = mat.data()[y * mat.shape(0) + x]
-using Matrix = ndarray<2, float>;
+using Matrix = ndarray<2, float, 4>;
 // 注意：默认对齐到 64 字节，如需 4096 字节，请用 ndarray<2, float, AlignedAllocator<4096, float>>
 
 static void matrix_randomize(Matrix &out) {
@@ -25,10 +25,16 @@ static void matrix_randomize(Matrix &out) {
 
     // 这个循环为什么不够高效？如何优化？ 10 分
 #pragma omp parallel for collapse(2)
-    for (int x = 0; x < nx; x++) {
-        for (int y = 0; y < ny; y++) {
-            float val = wangsrng(x, y).next_float();
-            out(x, y) = val;
+    for (int y = 0; y < ny; y++) {
+        for (int x = 0; x < nx; x+=4) {
+            float val[4];
+            for (int i = 0; i != 4; i++)
+                val[i] = wangsrng(x, y).next_float();
+            _mm_stream_ps(&out(x,y), _mm_load_ps(val));
+        // for (int x = 0; x < nx; x++) {
+        //     float val = wangsrng(x, y).next_float();
+        //     _mm_stream_si32((int*)&out(x, y), *(int*)&val);
+        //     out(x, y) = val;
         }
     }
     TOCK(matrix_randomize);
