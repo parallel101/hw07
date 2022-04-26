@@ -7,6 +7,7 @@
 // 作业中有很多个问句，请通过注释回答问题，并改进其代码，以使其更快
 // 并行可以用 OpenMP 也可以用 TBB
 
+#include <cstring>
 #include <iostream>
 #include <x86intrin.h>  // _mm 系列指令都来自这个头文件
 //#include <xmmintrin.h>  // 如果上面那个不行，试试这个
@@ -25,6 +26,11 @@ static void matrix_randomize(Matrix &out) {
     size_t ny = out.shape(1);
 
     // 这个循环为什么不够高效？如何优化？ 10 分
+// 不是顺序写入所以低效
+// - 在原函数中，yx序的矩阵使用xy序遍历。交换xy遍历顺序即可优化为顺序访问。(O3优化似乎自动帮你做了)
+// - 可以使用`_mm_stream_si32`绕过缓存写入。
+// - 也可以使用`_mm_stream_ps`绕过缓存写入，但这要求首先计算4次`random`，有可能变成CPU-bound. 或者可以设计一个每次输出一个128比特向量的random.
+//   - 如果数组大小不是4的倍数，边界需要特殊处理，或者申请数组时向外扩张4个float以免越界。
 #pragma omp parallel for collapse(2)
     for (int y = 0; y < ny; y++) {
         for (int x = 0; x < nx; x+=4) {
@@ -48,12 +54,17 @@ static void matrix_transpose(Matrix &out, Matrix const &in) {
     out.reshape(ny, nx);
 
     // 这个循环为什么不够高效？如何优化？ 15 分
+// 主要的问题out和in总有一个不是顺序访问所以造成大量cache miss. 可以通过分块遍历优化。
+// - 可以使用简单的分块循环，每次转置一个直径为64的块
+//   - 需要注意越界问题，需要边缘扩展64字节
+// - (未使用)可以使用莫顿码遍历，但由于注意到矩阵直径不是2的整数幂所以可以使用tbb的`simple_partitioner`自带的莫顿码遍历
+// - 使用`_mm_stream_si32`绕过缓存写入
 #pragma omp parallel for collapse(2)
     for (int yBase = 0; yBase < ny; yBase+=64) {
         for (int xBase = 0; xBase < nx; xBase+=64) {
             for (int y = yBase; y != yBase + 64; y++) {
                 for (int x = xBase; x != xBase + 64; x++) {
-                    out(x, y) = in(y, x);
+                    _mm_stream_si32((int*)&out(x, y), *(int*)&in(y, x));
                 }
             }
         }
@@ -73,11 +84,13 @@ static void matrix_multiply(Matrix &out, Matrix const &lhs, Matrix const &rhs) {
     out.reshape(nx, ny);
 
     // 这个循环为什么不够高效？如何优化？ 15 分
-#pragma omp parallel for collapse(2)
+    // 由于遍历顺序不佳所以不是顺序访问，可以通过改变t和x的遍历顺序解决
+#pragma omp parallel for 
     for (int y = 0; y < ny; y++) {
-        for (int x = 0; x < nx; x++) {
-            out(x, y) = 0;  // 有没有必要手动初始化？ 5 分
-            for (int t = 0; t < nt; t++) {
+        // 需要手动初始化，因为无法保证Matrix全为0，因为它是作为参数传入而不是作为临时变量构造的。
+        memset(&out(0, y), 0, sizeof(float) * (nx));
+        for (int t = 0; t < nt; t++) {
+            for (int x = 0; x < nx; x++) {
                 out(x, y) += lhs(x, t) * rhs(t, y);
             }
         }
@@ -89,7 +102,8 @@ static void matrix_multiply(Matrix &out, Matrix const &lhs, Matrix const &rhs) {
 static void matrix_RtAR(Matrix &RtAR, Matrix const &R, Matrix const &A) {
     TICK(matrix_RtAR);
     // 这两个是临时变量，有什么可以优化的？ 5 分
-    Matrix Rt, RtA;
+    // 简单池化避免重复分配销毁。
+    static Matrix Rt, RtA;
     matrix_transpose(Rt, R);
     matrix_multiply(RtA, Rt, A);
     matrix_multiply(RtAR, RtA, R);
