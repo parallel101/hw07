@@ -10,12 +10,13 @@
 #include <iostream>
 #include <x86intrin.h>  // _mm 系列指令都来自这个头文件
 //#include <xmmintrin.h>  // 如果上面那个不行，试试这个
+#include "alignalloc.h"
 #include "ndarray.h"
 #include "wangsrng.h"
 #include "ticktock.h"
 
 // Matrix 是 YX 序的二维浮点数组：mat(x, y) = mat.data()[y * mat.shape(0) + x]
-using Matrix = ndarray<2, float, 4>;
+using Matrix = ndarray<2, float, 64>;
 // 注意：默认对齐到 64 字节，如需 4096 字节，请用 ndarray<2, float, AlignedAllocator<4096, float>>
 
 static void matrix_randomize(Matrix &out) {
@@ -48,9 +49,13 @@ static void matrix_transpose(Matrix &out, Matrix const &in) {
 
     // 这个循环为什么不够高效？如何优化？ 15 分
 #pragma omp parallel for collapse(2)
-    for (int x = 0; x < nx; x++) {
-        for (int y = 0; y < ny; y++) {
-            out(y, x) = in(x, y);
+    for (int yBase = 0; yBase < ny; yBase+=64) {
+        for (int xBase = 0; xBase < nx; xBase+=64) {
+            for (int y = yBase; y != yBase + 64; y++) {
+                for (int x = xBase; x != xBase + 64; x++) {
+                    out(x, y) = in(y, x);
+                }
+            }
         }
     }
     TOCK(matrix_transpose);
