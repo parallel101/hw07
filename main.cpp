@@ -8,8 +8,12 @@
 // 并行可以用 OpenMP 也可以用 TBB
 
 #include <iostream>
-//#include <x86intrin.h>  // _mm 系列指令都来自这个头文件
+#include <cstring>
+#include <x86intrin.h>  // _mm 系列指令都来自这个头文件
 //#include <xmmintrin.h>  // 如果上面那个不行，试试这个
+#include <tbb/parallel_for.h>
+#include <tbb/blocked_range2d.h>
+#include <tbb/partitioner.h>
 #include "ndarray.h"
 #include "wangsrng.h"
 #include "ticktock.h"
@@ -24,11 +28,22 @@ static void matrix_randomize(Matrix &out) {
     size_t ny = out.shape(1);
 
     // 这个循环为什么不够高效？如何优化？ 10 分
+    // 答：不够高效是因为内部循环遍历 y 导致访存不是连续的，而是跳跃的，降低访存效率。
+    // 可以通过改变循环的轴，并采用直写进行优化。
 #pragma omp parallel for collapse(2)
-    for (int x = 0; x < nx; x++) {
-        for (int y = 0; y < ny; y++) {
-            float val = wangsrng(x, y).next_float();
-            out(x, y) = val;
+    for (int y = 0; y < ny; ++y) {
+        for (int x = 0; x < nx; x += 8) { 
+            __m256 res = {
+                wangsrng(x, y).next_float(),
+                wangsrng(x+1, y).next_float(),
+                wangsrng(x+2, y).next_float(),
+                wangsrng(x+3, y).next_float(),
+                wangsrng(x+4, y).next_float(),
+                wangsrng(x+5, y).next_float(),
+                wangsrng(x+6, y).next_float(),
+                wangsrng(x+7, y).next_float()
+            };
+            _mm256_stream_ps(&out(x, y), res);
         }
     }
     TOCK(matrix_randomize);
@@ -41,12 +56,20 @@ static void matrix_transpose(Matrix &out, Matrix const &in) {
     out.reshape(ny, nx);
 
     // 这个循环为什么不够高效？如何优化？ 15 分
-#pragma omp parallel for collapse(2)
-    for (int x = 0; x < nx; x++) {
-        for (int y = 0; y < ny; y++) {
-            out(y, x) = in(x, y);
-        }
-    }
+    // 答：内部循环访存 out(y, x) 是连续的，但访问 in(x, y) 不是。
+    // 可以用 loop tiling + morton ordering 的方式优化
+
+    const int BLOCK_SIZE = 32; // 32 * 32 * 4B = 4KB = 1 page and n mod 32 = 0
+    tbb::parallel_for(tbb::blocked_range2d<size_t>(0, nx, BLOCK_SIZE, 0, ny, BLOCK_SIZE),
+        [&in, &out](const tbb::blocked_range2d<size_t> &r) {
+            for (int x = r.rows().begin(); x != r.rows().end(); ++x) {
+                for (int y = r.cols().begin(); y != r.cols().end(); ++y) {
+                    out(y, x) = in(x, y);
+                }
+            }
+        }, 
+        tbb::simple_partitioner{}
+    );
     TOCK(matrix_transpose);
 }
 
@@ -62,15 +85,24 @@ static void matrix_multiply(Matrix &out, Matrix const &lhs, Matrix const &rhs) {
     out.reshape(nx, ny);
 
     // 这个循环为什么不够高效？如何优化？ 15 分
-#pragma omp parallel for collapse(2)
-    for (int y = 0; y < ny; y++) {
-        for (int x = 0; x < nx; x++) {
-            out(x, y) = 0;  // 有没有必要手动初始化？ 5 分
-            for (int t = 0; t < nt; t++) {
-                out(x, y) += lhs(x, t) * rhs(t, y);
+    // 答：最内部循环访存 rhs(t, y) 是连续的，但访问 out(x, y) 与 lhs(x, t) 不是。
+    // 可以用 loop tiling + morton ordering 的方式优化
+    const int BLOCK_SIZE = 32; // 32 * 32 * 4B = 4KB = 1 page and n mod 32 = 0
+    tbb::parallel_for(tbb::blocked_range2d<size_t>(0, nx, BLOCK_SIZE, 0, ny, BLOCK_SIZE),
+        [&out, &lhs, &rhs, nt](const tbb::blocked_range2d<size_t> &r) {
+            for (int x = r.rows().begin(); x != r.rows().end(); ++x) {
+                for (int y = r.cols().begin(); y != r.cols().end(); ++y) {
+                    float tmp = 0.0f;
+                    for (int t = 0; t < nt; ++t) {
+                        tmp += lhs(x, t) * rhs(t, y);
+                    }
+                    out(x, y) = tmp; // 有没有必要手动初始化？ 5 分
+                    // 没必要初始化，也可以用临时变量记录和。
+                }
             }
-        }
-    }
+        }, 
+        tbb::simple_partitioner{}
+    );
     TOCK(matrix_multiply);
 }
 
@@ -78,7 +110,9 @@ static void matrix_multiply(Matrix &out, Matrix const &lhs, Matrix const &rhs) {
 static void matrix_RtAR(Matrix &RtAR, Matrix const &R, Matrix const &A) {
     TICK(matrix_RtAR);
     // 这两个是临时变量，有什么可以优化的？ 5 分
-    Matrix Rt, RtA;
+    // 可以将其局部静态化，以防重复初始化；tread_local 保证多线程安全。
+    static thread_local Matrix Rt, RtA;
+    
     matrix_transpose(Rt, R);
     matrix_multiply(RtA, Rt, A);
     matrix_multiply(RtAR, RtA, R);
