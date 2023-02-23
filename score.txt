@@ -1,43 +1,86 @@
 # 原始代码
 
 t=0: n=1120
-matrix_randomize: 0.000928323s
-matrix_randomize: 0.000687871s
-matrix_transpose: 0.00252768s
-matrix_multiply: 0.904947s
-matrix_multiply: 0.901407s
-matrix_RtAR: 1.80908s
-matrix_trace: 6.026e-06s
+matrix_randomize: 1640300ns
+matrix_randomize: 905350ns
+matrix_transpose: 2858292ns
+matrix_multiply: 124426955ns
+matrix_multiply: 122302470ns
+matrix_RtAR: 249622821ns
+matrix_trace: 6950ns
 1.75932e+08
-test_func: 1.81493s
+test_func: 261158589ns
 t=1: n=928
-matrix_randomize: 0.000416769s
-matrix_randomize: 0.0015025s
-matrix_transpose: 0.00151582s
-matrix_multiply: 0.301254s
-matrix_multiply: 0.28622s
-matrix_RtAR: 0.589364s
-matrix_trace: 5.466e-06s
+matrix_randomize: 219398ns
+matrix_randomize: 216040ns
+matrix_transpose: 1480696ns
+matrix_multiply: 69361807ns
+matrix_multiply: 69488155ns
+matrix_RtAR: 140357708ns
+matrix_trace: 4406ns
 1.00156e+08
-test_func: 0.594152s
+test_func: 143469454ns
 t=2: n=1024
-matrix_randomize: 0.000563016s
-matrix_randomize: 0.000558918s
-matrix_transpose: 0.00226996s
-matrix_multiply: 0.709763s
-matrix_multiply: 0.71093s
-matrix_RtAR: 1.42356s
-matrix_trace: 5.926e-06s
+matrix_randomize: 387866ns
+matrix_randomize: 382464ns
+matrix_transpose: 2237437ns
+matrix_multiply: 170670256ns
+matrix_multiply: 170944211ns
+matrix_RtAR: 343932593ns
+matrix_trace: 6656ns
 1.34324e+08
-test_func: 1.42708s
+test_func: 348436713ns
 t=3: n=1056
-matrix_randomize: 0.000606057s
-matrix_randomize: 0.000610583s
-matrix_transpose: 0.00212937s
-matrix_multiply: 0.753805s
-matrix_multiply: 0.758014s
-matrix_RtAR: 1.51414s
-matrix_trace: 0.000139467s
+matrix_randomize: 278548ns
+matrix_randomize: 303162ns
+matrix_transpose: 2244654ns
+matrix_multiply: 102034204ns
+matrix_multiply: 101822940ns
+matrix_RtAR: 206129992ns
+matrix_trace: 5291ns
 1.47405e+08
-test_func: 1.5189s
-overall: 5.35657s
+test_func: 210509771ns
+overall: 965910915ns
+
+#优化后
+t=0: n=1120
+matrix_randomize: 1149905ns
+matrix_randomize: 194806ns
+matrix_transpose: 3380612ns
+matrix_multiply: 22715600ns
+matrix_multiply: 16198907ns
+matrix_RtAR: 42313253ns
+matrix_trace: 4655ns
+1.75932e+08
+test_func: 53439795ns
+t=1: n=928
+matrix_randomize: 120288ns
+matrix_randomize: 104550ns
+matrix_transpose: 1505999ns
+matrix_multiply: 9278394ns
+matrix_multiply: 9541630ns
+matrix_RtAR: 20339630ns
+matrix_trace: 3784ns
+1.00156e+08
+test_func: 23224326ns
+t=2: n=1024
+matrix_randomize: 132620ns
+matrix_randomize: 129305ns
+matrix_transpose: 2188643ns
+matrix_multiply: 14148323ns
+matrix_multiply: 13984732ns
+matrix_RtAR: 30337879ns
+matrix_trace: 3876ns
+1.34324e+08
+test_func: 32501406ns
+t=3: n=1056
+matrix_randomize: 132218ns
+matrix_randomize: 133312ns
+matrix_transpose: 2499468ns
+matrix_multiply: 13799665ns
+matrix_multiply: 13568507ns
+matrix_RtAR: 29882378ns
+matrix_trace: 4531ns
+1.47405e+08
+test_func: 34571786ns
+overall: 144688938ns
