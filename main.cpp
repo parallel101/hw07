@@ -8,11 +8,13 @@
 // 并行可以用 OpenMP 也可以用 TBB
 
 #include <iostream>
-//#include <x86intrin.h>  // _mm 系列指令都来自这个头文件
-//#include <xmmintrin.h>  // 如果上面那个不行，试试这个
+// #include <x86intrin.h>  // _mm 系列指令都来自这个头文件
+#include <immintrin.h>  // 如果上面那个不行，试试这个
 #include "ndarray.h"
 #include "wangsrng.h"
 #include "ticktock.h"
+#include "morton.h"
+#include "mtprint.h"
 
 // Matrix 是 YX 序的二维浮点数组：mat(x, y) = mat.data()[y * mat.shape(0) + x]
 using Matrix = ndarray<2, float>;
@@ -23,12 +25,26 @@ static void matrix_randomize(Matrix &out) {
     size_t nx = out.shape(0);
     size_t ny = out.shape(1);
 
-    // 这个循环为什么不够高效？如何优化？ 10 分
+/*
+    这个循环为什么不够高效？如何优化？ 10 分
+    跳跃访存，缓存利用率低下
+    1.改变xy序为yx序
+    2.使用直写指令，降低一倍访存带宽
+*/
 #pragma omp parallel for collapse(2)
-    for (int x = 0; x < nx; x++) {
-        for (int y = 0; y < ny; y++) {
-            float val = wangsrng(x, y).next_float();
-            out(x, y) = val;
+    for (size_t y = 0; y < ny; y++) {
+        for (size_t xBase = 0; xBase < nx; xBase+=16) {
+            float res[16];
+// #pragma GCC unroll 16
+            for (size_t x=0;x<16;x++){
+                res[x] = wangsrng(xBase+x, y).next_float();
+                // out(x, y) = val;
+            }
+            // for (int x=0;x<16;x++){
+            //     _mm_stream_si32(reinterpret_cast<int *>(&out(x+xBase,y)),*(reinterpret_cast<int *>(&res[x])));
+            // }
+            _mm512_stream_ps(&out(xBase,y),_mm512_load_ps(res));
+
         }
     }
     TOCK(matrix_randomize);
@@ -40,13 +56,40 @@ static void matrix_transpose(Matrix &out, Matrix const &in) {
     size_t ny = in.shape(1);
     out.reshape(ny, nx);
 
-    // 这个循环为什么不够高效？如何优化？ 15 分
-#pragma omp parallel for collapse(2)
-    for (int x = 0; x < nx; x++) {
-        for (int y = 0; y < ny; y++) {
-            out(y, x) = in(x, y);
+/*
+    这个循环为什么不够高效？如何优化？ 15 分
+    矩阵转置这种访存读写一方一定存在一个是跳跃访存的，导致缓存利用率低
+*/
+//原版代码
+// #pragma omp parallel for collapse(2)
+//     for (int x = 0; x < nx; x++) {
+//         for (int y = 0; y < ny; y++) {
+//             out(y, x) = in(x, y);
+//         }
+//     }
+
+//莫顿码顺序访问，但是由于分块的大小不是2的幂，需要判断越界
+    int blockSize=32;
+    int xdBlock=nx/blockSize;
+    int ydBlock=ny/blockSize;
+#pragma omp parallel for
+    for (int k = 0; k < morton2d::highestOneBit(xdBlock)*morton2d::highestOneBit(ydBlock); k++){
+        auto [xBase, yBase] = morton2d::decode(k);
+        // mtprint(xdBlock,morton2d::highestOneBit(xdBlock));
+        if (xBase>=xdBlock || yBase>=ydBlock){
+            continue;
+        }
+        xBase*=blockSize;
+        yBase*=blockSize;
+        for (int x=xBase;x<xBase+blockSize;x++){
+            for(int y=yBase;y<yBase+blockSize;y++){
+                // 用stream指令反而变慢了，不知道为何
+                // _mm_stream_si32((int *)(&out(y,x)),(int &)in(x,y));
+                out(y, x) = in(x, y);
+            }
         }
     }
+       
     TOCK(matrix_transpose);
 }
 
@@ -60,17 +103,41 @@ static void matrix_multiply(Matrix &out, Matrix const &lhs, Matrix const &rhs) {
         throw;
     }
     out.reshape(nx, ny);
-
-    // 这个循环为什么不够高效？如何优化？ 15 分
-#pragma omp parallel for collapse(2)
-    for (int y = 0; y < ny; y++) {
-        for (int x = 0; x < nx; x++) {
-            out(x, y) = 0;  // 有没有必要手动初始化？ 5 分
-            for (int t = 0; t < nt; t++) {
-                out(x, y) += lhs(x, t) * rhs(t, y);
+/*
+    这个循环为什么不够高效？如何优化？ 15 分
+    程序是mem-bound，三个矩阵的访存中
+        out(x, y)顺序访问，高效；
+        lhs(x, t)存储是x主序，但是按t主序访问，跨步访问，低效；
+        rhs(t, y)访问同一个地址，一般
+    缓存(L1)大小不够存下三个矩阵，命中率低
+    1. 循环分块，这样缓存可以放下一个块的大小，提高缓存命中率
+    2. 寄存器分块，指令级并行
+    3. 循环展开
+*/
+    int blockSize=32;
+    // __m128 mout,mlhs,mrhs;
+#pragma omp parallel for collapse(3)
+    for(int yBase = 0; yBase < ny / blockSize;yBase++){
+        for (int xBase = 0; xBase < nx / blockSize; xBase++) {
+            for ( int tBase=0 ; tBase< nt / blockSize; tBase ++){
+                for (int y = yBase*blockSize; y < (yBase+1)*blockSize; y++) {
+                    for (int t = tBase*blockSize; t < (tBase+1)*blockSize; t++) {
+                        // out(x, y) = 0;  // 有没有必要手动初始化？ 5 分 答：没必要，clear()->resize()全部初始化为0了
+                        // mrhs=_mm_set1_ps(rhs(t,y));
+#pragma GCC unroll 32
+                        for (int x = xBase*blockSize; x < (xBase+1)*blockSize; x++) {
+                            out(x, y) += lhs(x, t) * rhs(t, y);
+                            // mout=_mm_load_ps(&out(x,y));
+                            // mlhs=_mm_load_ps(&lhs(x,t));
+                            // mout=_mm_add_ps(mout,_mm_mul_ps(mlhs,mrhs));
+                            // _mm_store_ps(&out(x,y),mout);
+                        }
+                    }
+                }
             }
         }
     }
+    
     TOCK(matrix_multiply);
 }
 
@@ -78,9 +145,11 @@ static void matrix_multiply(Matrix &out, Matrix const &lhs, Matrix const &rhs) {
 static void matrix_RtAR(Matrix &RtAR, Matrix const &R, Matrix const &A) {
     TICK(matrix_RtAR);
     // 这两个是临时变量，有什么可以优化的？ 5 分
-    Matrix Rt, RtA;
-    matrix_transpose(Rt, R);
-    matrix_multiply(RtA, Rt, A);
+    // 1. 可以省去Rt,使用RtAR代替
+    // 2. 使用static关键字，手动池化
+    static thread_local Matrix RtA;
+    matrix_transpose(RtAR, R);
+    matrix_multiply(RtA, RtAR, A);
     matrix_multiply(RtAR, RtA, R);
     TOCK(matrix_RtAR);
 }

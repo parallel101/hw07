@@ -36,6 +36,19 @@ constexpr static std::tuple<uint64_t, uint64_t> decode(uint64_t d)
     return {decode1(d), decode1(d >> 1)};
 }
 
+constexpr static uint64_t highestOneBit(uint64_t x){
+    x-=1;
+    x |= x >> 1; 
+    x |= x >> 2; 
+    x |= x >> 4; 
+    x |= x >> 8; 
+    x |= x >> 16;
+    x |= x >> 32;
+    x |= x >> 64;
+    x += 1; 
+    return x;
+}
+
 }
 
 namespace morton3d {
